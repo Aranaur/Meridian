@@ -1388,8 +1388,3 @@ add_game_to_df(game_35, game_35_points, 34)
 add_game_to_df(game_36, game_36_points, 35)
 add_game_to_df(game_37, game_37_points, 36)
 add_game_to_df(game_38, game_38_points, 37)
-
-games = [game_01, game_02, game_03, game_04, game_05, game_06, game_07, game_08, game_09, game_10,
-            game_11, game_12, game_13, game_14, game_15, game_16, game_17, game_18, game_19, game_20,
-            game_21, game_22, game_23, game_24, game_25, game_26, game_27, game_28, game_29, game_30,
-            game_31, game_32, game_33, game_34, game_35, game_36, game_37, game_38]
