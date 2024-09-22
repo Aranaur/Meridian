@@ -1,0 +1,4 @@
+- source: meridian-dashboard.qmd
+  quarto-pub:
+    - id: ceda3b51-1c40-4219-8213-c5715d7df25b
+      url: 'https://aranaur.quarto.pub/meridian'

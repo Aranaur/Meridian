@@ -1,0 +1,168 @@
+---
+title: 'Меридіан'
+author: 'Недільний Футбол'
+format: 
+    dashboard:
+        logo: img/logo.svg
+        html-table-processing: none
+---
+
+
+```{python}
+#| context: setup
+
+import pandas as pd
+import itables
+import plotly.express as px
+from games import *
+```
+
+# Рейтинг гравців
+
+## Column
+
+```{python}
+#| content: valuebox
+#| title: 'Останні зміни'
+#| icon: calendar-event
+#| color: info
+dict(
+  value = date.today().strftime('%d.%m.%y')
+)
+```
+
+```{python}
+#| content: valuebox
+#| title: 'Зіграно матчів'
+#| icon: joystick
+#| color: primary
+dict(
+  value = f"{games_df['Дата'].nunique()}/{len(games_date)}"
+)
+```
+
+```{python}
+#| content: valuebox
+#| title: 'Середня кількість очок за тур'
+#| icon: rulers
+#| color: success
+
+dict(
+  value = round(games_df[games_df['Команда'].isin(['Червоні', "Жовті", "Сині"])]['Очки'].sum() / games_df.shape[0], 2)
+)
+```
+
+## Column
+
+```{python}
+#| label: rating_df
+#| title: Рейтинг гравців
+
+# Формуємо таблицю з рейтингом гравців
+rating_df = games_df.groupby(['Гравець']).agg(
+    {
+        'Очки': 'sum'
+    }
+).reset_index()
+
+# Зіграно матчів
+games_played = games_df.groupby(['Гравець']).agg(
+    {
+        'Дата': 'nunique'
+    }
+)
+rating_df = rating_df.merge(games_played, on='Гравець')
+rating_df = rating_df.rename(columns={'Дата': 'Зіграно матчів'})
+
+rating_df = rating_df.sort_values(by=['Очки', 'Зіграно матчів'], ascending=[False, True])
+rating_df = rating_df.reset_index(drop=True)
+rating_df['Місце'] = rating_df.index + 1
+
+# Середня кількість очок за гру до цілого
+rating_df['Ефективність'] = round(rating_df['Очки'] / rating_df['Зіграно матчів'], 2)
+
+# Очків з запасу
+bench_points = games_df[games_df['Команда'] == 'Запас'].groupby(['Гравець']).agg(
+    {
+        'Очки': 'sum'
+    }
+)
+
+rating_df = rating_df.merge(bench_points, on='Гравець', how='left')
+rating_df = rating_df.rename(columns={'Очки_y': 'Очків з запасу'})
+rating_df = rating_df.rename(columns={'Очки_x': 'Очки'})
+rating_df['Очків з запасу'] = rating_df['Очків з запасу'].fillna(0)
+
+
+# Виводимо таблицю
+rating_df.set_index('Місце', inplace=True)
+itables.show(rating_df.reset_index(), searching = False, info = False)
+```
+
+### Row
+
+```{python}
+#| label: mean_points_plot
+#| title: Середня кількість очок за тур
+
+# x - дата, y - середня кількість очок за гру
+
+mean_points = games_df[games_df['Команда'].isin(['Червоні', "Жовті", "Сині"])].groupby(['Дата']).agg(
+    {
+        'Очки': 'mean'
+    }
+).reset_index()
+
+fig = px.line(
+    mean_points,
+    x='Дата',
+    y='Очки',
+    labels={'Очки': '', 'Дата': 'Дата'},
+    title=''
+)
+
+fig.update_xaxes(
+    dtick='M1',
+    tickformat='%d.%m.%y'
+).add_hline(y=round(games_df[games_df['Команда'].isin(['Червоні', "Жовті", "Сині"])]['Очки'].sum() / games_df.shape[0], 2), line_dash='dash', line_color='red')
+```
+
+```{python}
+#| label: rating_eff_plot
+#| title: Топ-5 за ефективністю (>10 матчів)
+
+fig = px.bar(
+    rating_df[rating_df['Зіграно матчів'] > 10].sort_values(by='Ефективність', ascending=False).head(5),
+    y='Гравець',
+    x='Ефективність',
+    labels={'Ефективність': 'Ефективність', 'Гравець': ''},
+    color='Ефективність',
+    text='Ефективність',
+    color_continuous_scale='Viridis'
+)
+
+# у порядку спадання
+fig.update_traces(textposition='inside').update_yaxes(categoryorder='total ascending').update_coloraxes(showscale=False).update_layout(uniformtext_minsize=8, uniformtext_mode='show')
+```
+
+```{python}
+#| label: rating_plot
+#| title: Топ-5 за активністю
+
+# Топ-10 за відсотком зіграних матчів
+
+rating_df['Відсоток зіграних матчів'] = round(rating_df['Зіграно матчів'] / games_df['Дата'].nunique() * 100, 2)
+
+fig = px.bar(
+    rating_df.sort_values(by='Відсоток зіграних матчів', ascending=False).head(5),
+    y='Гравець',
+    x='Відсоток зіграних матчів',
+    labels={'Відсоток зіграних матчів': 'Відсоток зіграних матчів', 'Гравець': ''},
+    color='Відсоток зіграних матчів',
+    text='Відсоток зіграних матчів',
+    color_continuous_scale='Viridis'
+)
+
+# у порядку спадання та додаванням тексту
+fig.update_traces(textposition='inside').update_yaxes(categoryorder='total ascending').update_coloraxes(showscale=False).update_layout(uniformtext_minsize=2, uniformtext_mode='show')
+```
