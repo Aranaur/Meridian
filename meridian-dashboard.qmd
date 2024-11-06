@@ -14,6 +14,7 @@ format:
 import pandas as pd
 import itables
 import plotly.express as px
+import altair as alt
 from games import *
 ```
 
@@ -58,14 +59,12 @@ dict(
 #| label: rating_df
 #| title: Рейтинг гравців
 
-# Формуємо таблицю з рейтингом гравців
 rating_df = games_df.groupby(['Гравець']).agg(
     {
         'Очки': 'sum'
     }
 ).reset_index()
 
-# Зіграно матчів
 games_played = games_df.groupby(['Гравець']).agg(
     {
         'Дата': 'nunique'
@@ -78,10 +77,8 @@ rating_df = rating_df.sort_values(by=['Очки', 'Зіграно матчів']
 rating_df = rating_df.reset_index(drop=True)
 rating_df['Місце'] = rating_df.index + 1
 
-# Середня кількість очок за гру до цілого
 rating_df['Ефективність'] = round(rating_df['Очки'] / rating_df['Зіграно матчів'], 2)
 
-# Очків з запасу
 bench_points = games_df[games_df['Команда'] == 'Запас'].groupby(['Гравець']).agg(
     {
         'Очки': 'sum'
@@ -93,8 +90,6 @@ rating_df = rating_df.rename(columns={'Очки_y': 'Очків з запасу'
 rating_df = rating_df.rename(columns={'Очки_x': 'Очки'})
 rating_df['Очків з запасу'] = rating_df['Очків з запасу'].fillna(0)
 
-
-# Виводимо таблицю
 rating_df.set_index('Місце', inplace=True)
 itables.show(rating_df.reset_index(), searching = False, info = False)
 ```
@@ -104,8 +99,6 @@ itables.show(rating_df.reset_index(), searching = False, info = False)
 ```{python}
 #| label: mean_points_plot
 #| title: Середня кількість очок за тур
-
-# x - дата, y - середня кількість очок за гру
 
 mean_points = games_df[games_df['Команда'].isin(['Червоні', "Жовті", "Сині"])].groupby(['Дата']).agg(
     {
@@ -127,42 +120,80 @@ fig.update_xaxes(
 ).add_hline(y=round(games_df[games_df['Команда'].isin(['Червоні', "Жовті", "Сині"])]['Очки'].sum() / games_df.shape[0], 2), line_dash='dash', line_color='red')
 ```
 
+#### Column
+
 ```{python}
 #| label: rating_eff_plot
-#| title: Топ-5 за ефективністю (>10 матчів)
+#| title: Топ-5 за ефективністю (>20 матчів)
 
-fig = px.bar(
-    rating_df[rating_df['Зіграно матчів'] > 10].sort_values(by='Ефективність', ascending=False).head(5),
-    y='Гравець',
-    x='Ефективність',
-    labels={'Ефективність': 'Ефективність', 'Гравець': ''},
-    color='Ефективність',
-    text='Ефективність',
-    color_continuous_scale='Viridis'
+data = rating_df[rating_df['Зіграно матчів'] > 20].sort_values(by='Ефективність', ascending=False).head(5)
+
+chart_performance = alt.Chart(data).mark_bar().encode(
+    y=alt.Y('Гравець:N', sort='-x', title=''),
+    x=alt.X('Ефективність:Q', title='Ефективність', axis=None),
+    color=alt.Color('Ефективність:Q', scale=alt.Scale(scheme='viridis'), legend=None)
 )
 
-# у порядку спадання
-fig.update_traces(textposition='inside').update_yaxes(categoryorder='total ascending').update_coloraxes(showscale=False).update_layout(uniformtext_minsize=8, uniformtext_mode='show')
+text_performance = alt.Chart(data).mark_text(dx=15, dy=0, color='black').encode(
+    y=alt.Y('Гравець:N', sort='-x', title=''),
+    x=alt.X('Ефективність:Q', title='Ефективність', axis=None),
+    text=alt.Text('Ефективність:Q', format='.2f')
+)
+
+(chart_performance + text_performance).configure_view(
+    strokeOpacity=0
+)
 ```
 
 ```{python}
 #| label: rating_plot
 #| title: Топ-5 за активністю
 
-# Топ-10 за відсотком зіграних матчів
-
 rating_df['Відсоток зіграних матчів'] = round(rating_df['Зіграно матчів'] / games_df['Дата'].nunique() * 100, 2)
+data = rating_df.sort_values(by='Відсоток зіграних матчів', ascending=False).head(5)
 
-fig = px.bar(
-    rating_df.sort_values(by='Відсоток зіграних матчів', ascending=False).head(5),
-    y='Гравець',
-    x='Відсоток зіграних матчів',
-    labels={'Відсоток зіграних матчів': 'Відсоток зіграних матчів', 'Гравець': ''},
-    color='Відсоток зіграних матчів',
-    text='Відсоток зіграних матчів',
-    color_continuous_scale='Viridis'
+bars_active = alt.Chart(data).mark_bar().encode(
+    y=alt.Y('Гравець:O', sort='-x', title=''),
+    x=alt.X('Відсоток зіграних матчів:Q', title='Відсоток зіграних матчів', axis=None),
+    color=alt.Color('Відсоток зіграних матчів:Q', scale=alt.Scale(scheme='viridis'), legend=None)
 )
 
-# у порядку спадання та додаванням тексту
-fig.update_traces(textposition='inside').update_yaxes(categoryorder='total ascending').update_coloraxes(showscale=False).update_layout(uniformtext_minsize=2, uniformtext_mode='show')
+text_active = alt.Chart(data).mark_text(dx=15, dy=0, color='black').encode(
+    y=alt.Y('Гравець:O', sort='-x', title=''),
+    x=alt.X('Відсоток зіграних матчів:Q', title='Відсоток зіграних матчів', axis=None),
+    text=alt.Text('Відсоток зіграних матчів:Q', format='.2f')
+)
+
+(bars_active + text_active).configure_view(
+    strokeOpacity=0
+)
+```
+
+#### Row
+
+```{python}
+#| label: total_points_by_color
+#| title: Загальна сума очок за кольорами
+
+total_points_by_color = games_df[games_df['Команда'].isin(['Червоні', "Жовті", "Сині"])].groupby(['Команда']).agg(
+    {
+        'Очки': 'sum'
+    }
+).reset_index()
+
+bars = alt.Chart(total_points_by_color).mark_bar().encode(
+    y=alt.Y('Команда:O', sort='-x', title=''),
+    x=alt.X('Очки:Q', title='Очки', axis=None),
+    color=alt.Color('Команда:N', scale=alt.Scale(domain=['Червоні', 'Жовті', 'Сині'], range=['#E15759', '#FDE725', '#0D6EFD']), legend=None)
+)
+
+text = alt.Chart(total_points_by_color).mark_text(dx=15, dy=0, color='black').encode(
+    y=alt.Y('Команда:O', sort='-x', title=''),
+    x=alt.X('Очки:Q', title='Очки', axis=None),
+    text=alt.Text('Очки:Q')
+)
+
+(bars + text).configure_view(
+    strokeOpacity=0
+)
 ```
