@@ -150,6 +150,7 @@ text_performance = alt.Chart(data).mark_text(dx=15, dy=0, color='black').encode(
 #| title: Топ-5 за активністю
 
 rating_df['Відсоток зіграних матчів'] = round(rating_df['Зіграно матчів'] / games_df['Дата'].nunique() * 100, 2)
+
 data = rating_df.sort_values(by='Відсоток зіграних матчів', ascending=False).head(5)
 
 bars_active = alt.Chart(data).mark_bar().encode(
@@ -175,7 +176,12 @@ text_active = alt.Chart(data).mark_text(dx=15, dy=0, color='black').encode(
 #| label: total_points_by_color
 #| title: Загальна сума очок за кольорами
 
-total_points_by_color = games_df[games_df['Команда'].isin(['Червоні', "Жовті", "Сині"])].groupby(['Команда']).agg(
+# total points by color by date (only for red, yellow, blue)
+total_points_by_color = games_df[games_df['Команда'].isin(['Червоні', "Жовті", "Сині"])].groupby(['Команда', 'Номер гри']).agg(
+    {
+        'Очки': 'mean'
+    }
+).groupby('Команда').agg(
     {
         'Очки': 'sum'
     }
@@ -194,6 +200,29 @@ text = alt.Chart(total_points_by_color).mark_text(dx=15, dy=0, color='black').en
 )
 
 (bars + text).configure_view(
+    strokeOpacity=0
+)
+```
+
+```{python}
+#| label: bench_points_plot
+#| title: Очки з запасу
+
+bench_points = rating_df.sort_values(by='Очків з запасу', ascending=False).head(5)
+
+bars_bench = alt.Chart(bench_points).mark_bar().encode(
+    y=alt.Y('Гравець:O', sort='-x', title=''),
+    x=alt.X('Очків з запасу:Q', title='Очків з запасу', axis=None),
+    color=alt.Color('Очків з запасу:Q', scale=alt.Scale(scheme='viridis'), legend=None)
+)
+
+text_bench = alt.Chart(bench_points).mark_text(dx=15, dy=0, color='black').encode(
+    y=alt.Y('Гравець:O', sort='-x', title=''),
+    x=alt.X('Очків з запасу:Q', title='Очків з запасу', axis=None),
+    text=alt.Text('Очків з запасу:Q')
+)
+
+(bars_bench + text_bench).configure_view(
     strokeOpacity=0
 )
 ```
